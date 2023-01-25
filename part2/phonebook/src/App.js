@@ -3,6 +3,7 @@ import PersonForm from './Components/PersonForm'
 import Persons from './Components/Persons'
 import Filter from './Components/Filter'
 import personService from './services/person'
+import Notification from './Components/Notification'
 
 
 const App = () => {
@@ -10,6 +11,7 @@ const App = () => {
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [inputSearch, setInputSearch] = useState('')
+  const [notificationMessage, setNotificationMessage] = useState(null)
 
   useEffect(()=>{
     personService
@@ -70,7 +72,14 @@ const App = () => {
             .update(persons[i].id, nameObject)
             .then((response) => {
               setPersons(persons.map((person)=> person.id !== persons[i].id ? person : response.data))
+              setNotificationMessage(`${newName} updated.`)
         })
+            .catch(error=>{
+              setNotificationMessage(`${newName} was already removed`)
+            })
+          setTimeout(()=>{
+            setNotificationMessage(null)
+          }, 3000)
         break
       }
     }
@@ -81,6 +90,12 @@ const App = () => {
         .then(response=>{
           setPersons(persons.concat(response.data))
         })
+        .then(response => {
+          setNotificationMessage(`${newName} added.`)
+          setTimeout(()=>{
+            setNotificationMessage(null)
+          },3000)
+        })
     }
     isUpdate = false;
     setNewName('')
@@ -90,6 +105,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={notificationMessage} />
       <Filter handleInputSearch={handleInputSearch}/>
       <h2>add a new</h2>
       <PersonForm handleSubmit={handleSubmit} handleNameChange={handleNameChange} handleNumberChange={handleNumberChange}
