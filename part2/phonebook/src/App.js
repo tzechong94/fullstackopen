@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import PersonForm from './Components/PersonForm'
 import Persons from './Components/Persons'
 import Filter from './Components/Filter'
+import personService from './services/person'
 
 
 const App = () => {
@@ -12,12 +12,17 @@ const App = () => {
   const [inputSearch, setInputSearch] = useState('')
 
   useEffect(()=>{
-    axios
-        .get('http://localhost:3001/persons')
+    personService
+        .getAll()
         .then(response => {
+          console.log(response)
           setPersons(response.data)
         })
   }, [])
+
+  useEffect(() => {console.log(persons)}, [persons])
+
+
 
   const handleNameChange = (event) => {
     console.log(event.target.value)
@@ -33,21 +38,53 @@ const App = () => {
     setInputSearch(event.target.value)
   }
 
+  const onDelete = (id) => {
+    const person = persons.find(p => p.id === id)
+    console.log("delete pressed")
+    console.log("person ", person)
+    let answer = window.confirm(`Confirm delete ${person.name}?`)
+    console.log('answer', answer)
+    console.log("person id", person.id)
+    if (answer) {
+      personService
+        .remove(person.id)
+        .then(()=>{
+          setPersons(persons.filter(p=> p.id!== person.id))
+        })
+    }
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
+    let isUpdate = false
     const nameObject = {
       name: newName,
       number: newNumber
     }
-    if (Object.values(persons.map(s=>s.name.toLowerCase())).includes(newName)) {
-      window.alert(`${newName} is already added to the phonebook`)
-      setNewName('')
-      setNewNumber('')
-    } else {
-      setPersons(persons.concat(nameObject))
-      setNewName('')
-      setNewNumber('')
+    for ( let i = 0; i < persons.length; i++) {
+      if (persons[i].name.toLowerCase() === newName.toLowerCase()) {
+        isUpdate = true
+        if(window.confirm(`${newName} is already added. Replace number?`)){
+          console.log(persons[i].id, nameObject)
+          personService
+            .update(persons[i].id, nameObject)
+            .then((response) => {
+              setPersons(persons.map((person)=> person.id !== persons[i].id ? person : response.data))
+        })
+        break
+      }
     }
+  }
+
+    if (!isUpdate) {
+      personService.create(nameObject)
+        .then(response=>{
+          setPersons(persons.concat(response.data))
+        })
+    }
+    isUpdate = false;
+    setNewName('')
+    setNewNumber('')
   }
 
   return (
@@ -58,7 +95,7 @@ const App = () => {
       <PersonForm handleSubmit={handleSubmit} handleNameChange={handleNameChange} handleNumberChange={handleNumberChange}
        newName={newName} newNumber={newNumber}/>
       <h2>Numbers</h2>
-      <Persons inputSearch={inputSearch} persons={persons}/>
+      <Persons onDelete={onDelete} inputSearch={inputSearch} persons={persons}/>
     </div>
   )
 }
