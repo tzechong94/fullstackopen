@@ -56,8 +56,32 @@ const App = () => {
     }
   }
 
+  const validateInput = () => {
+    if (newName.length < 4) {
+      setNotificationMessage('name must be more than 3 characters')
+      return false
+    }
+    if (!newName) {
+      setNotificationMessage('name must be more than 3 characters')
+      return false
+    }
+    if (!newNumber) {
+      setNotificationMessage('number cannot be empty')
+      return false
+    }
+    if (!(/\d{2,3}-\d{6,}/.test(newNumber))) {
+      setNotificationMessage('Number is in the wrong format')
+      return false
+    }
+    return true
+  }
+
+
   const handleSubmit = (event) => {
     event.preventDefault()
+    if (!validateInput()){
+      return;
+    }
     let isUpdate = false
     const nameObject = {
       name: newName,
@@ -95,6 +119,9 @@ const App = () => {
           setTimeout(()=>{
             setNotificationMessage(null)
           },3000)
+        })
+        .catch(error => {
+          console.log(error.response.data.error)
         })
     }
     isUpdate = false;

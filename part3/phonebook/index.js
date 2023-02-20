@@ -1,7 +1,13 @@
+require('dotenv').config()
 const express = require('express')
 const morgan = require('morgan')
+const cors = require('cors')
 const app = express()
 app.use(express.json())
+app.use(express.static('build'))
+app.use(cors())
+
+const Contact = require('./models/contact')
 
 // app.use(morgan((tokens, req, res) => {
 //     return [
@@ -14,101 +20,118 @@ app.use(express.json())
 // )
 
 morgan.token('body', function getBody(req){
-    return JSON.stringify(req.body)
+  return JSON.stringify(req.body)
 })
 
 app.use(morgan(':method :url :response-time :body'))
 
-  
-let persons = [
-    { 
-      "id": 1,
-      "name": "Arto Hellas", 
-      "number": "040-123456"
-    },
-    { 
-      "id": 2,
-      "name": "Ada Lovelace", 
-      "number": "39-44-5323523"
-    },
-    { 
-      "id": 3,
-      "name": "Dan Abramov", 
-      "number": "12-43-234345"
-    },
-    { 
-      "id": 4,
-      "name": "Mary Poppendieck", 
-      "number": "39-23-6423122"
-    }
-]
 
+const errorHandler = (error, request, response, next) => {
+  console.log(error)
 
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  }
 
-const generateId = () => {
-    return Math.floor(Math.random() * (100-4) + 4)
+  if (error.name === 'ValidationError') {
+    return response.status(400).send( { error: error.message } )
+  }
+
+  next(error)
 }
 
-app.get('/api/persons', (request,response)=>{
-    response.json(persons)
+app.get('/api/persons', (request,response) => {
+  Contact.find({}).then(contacts => {
+    response.json(contacts)
+  })
 })
 
-app.get('/api/persons/:id', (request,response)=>{
-    const id = Number(request.params.id)
-    const person = persons.find(person => person.id === id)
+app.put('/api/persons/:id', (request,response,next) =>  {
 
-    if (person) {
-        response.json(person)
+  const body = checkGetPostBody(request, response)
+  const contact = {
+    name: body.name,
+    number: body.number
+  }
+
+  Contact.findByIdAndUpdate(request.params.id, contact, { new: true })
+    .then(updatedContact => {
+      response.json(updatedContact)
+    })
+    .catch(error => next(error))
+})
+
+app.get('/api/persons/:id', (request,response, next) => {
+  Contact.findById(request.params.id).then(contact => {
+    if (contact) {
+      response.json(contact)
     } else {
-        response.status(404).end()
+      response.status(404).end()
     }
+  })
+    .catch(error => {
+      next(error)
+    })
 })
 
-app.post('/api/persons', (request, response)=> {
-    const body = request.body
-    
-    if (!body.name || !body.number) {
-        return response.status(400).json({
-            error: 'content missing'
-        })
-    }
-
-    if (persons.map(person=> person.name).includes(body.name)) {
-        return response.status(400).json({
-            error: 'duplicate name'
-        })
-    }
-
-    const person = {
-        name: body.name,
-        number: body.number,
-        id: generateId()
-    }
-    persons = persons.concat(person)
-    response.json(person)
-})
-
-app.delete('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    persons = persons.filter(person => person.id!== id)
-    response.status(204).end()
-})
+const checkGetPostBody = (req, res) => {
+  const body = req.body
+  if (!body.name) {
+    return res.status(400).json({ error: 'the name field is missing' })
+  }
+  if (!body.number) {
+    return res.status(400).json({ error: 'the number field is missing' })
+  }
+  return body
+}
 
 
-app.get('/info', (request, response)=>{
-    const numberOfPeople = persons.length
-    const date = new Date()
+app.post('/api/persons', (request, response, next) => {
+  const body = checkGetPostBody(request, response)
 
-    response.send(
-        `<div>
-            <p>Phonebook has info for ${numberOfPeople} people.</p>
-            <p>${date}</p>
-        </div>`
+  const contact = new Contact({
+    name: body.name,
+    number: body.number
+  })
+
+  contact.save().then(savedContact => {
+    response.json(savedContact)
+  })
+    .catch(
+      error => next(error)
     )
 })
 
-
-const PORT = 3001
-app.listen(PORT, ()=>{
-    console.log(`Server running on port ${PORT}`)
+app.delete('/api/persons/:id', (request, response, next) => {
+  Contact.findByIdAndDelete(request.params.id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
+
+app.get('/info', (request, response, next) => {
+  const date = new Date()
+  Contact.countDocuments()
+    .then(numberOfPeople => {
+      const message = `<div>
+            <p>Phonebook has info for ${numberOfPeople} people.</p>
+            <p>${date}</p>
+        </div>`
+      response.send(message).end()
+    })
+    .catch(error => next(error))
+})
+
+// Contact.find({}).then(contacts => {
+//     response.json(contacts)
+
+app.use(errorHandler)
+
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+})
+
+
+//https://github.com/zubko/fullstack-open-part3-phonebook/blob/master/backend/index.js
