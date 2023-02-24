@@ -1,11 +1,11 @@
 const mongoose = require('mongoose')
 
 // DO NOT SAVE YOUR PASSWORD TO GITHUB!!
-const url = process.env.MONGODB_URI
+// const url = process.env.MONGODB_URI
 
 
-mongoose.set('strictQuery',false)
-mongoose.connect(url)
+// mongoose.set('strictQuery',false)
+// mongoose.connect(url)
 
 const noteSchema = new mongoose.Schema({
   content: {
@@ -16,8 +16,6 @@ const noteSchema = new mongoose.Schema({
   important: Boolean,
 })
 
-const Note = mongoose.model('Note', noteSchema)
-
 noteSchema.set('toJSON', {
     transform: (document, returnedObject) => {
       returnedObject.id = returnedObject._id.toString()
@@ -26,5 +24,5 @@ noteSchema.set('toJSON', {
     }
   })
 
-  module.exports = mongoose.model('Note', noteSchema)
+module.exports = mongoose.model('Note', noteSchema)
 
